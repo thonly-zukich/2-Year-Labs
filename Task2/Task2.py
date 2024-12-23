@@ -1,28 +1,24 @@
 import asyncio
 import random
 
-# Базова реалізація async_map для асинхронної обробки масиву з обробкою помилок і підтримкою дебаунсу
+# Перехід на Task 2: async_map переписано для використання async-await
 
-def async_map(data, async_function, callback):
-    results = [None] * len(data)
+async def async_map(data, async_function):
+    results = []
     errors = []
-    pending_tasks = len(data)
 
-    def handle_result(index, error, result):
-        nonlocal pending_tasks
-        if error:
-            errors.append((index, error))
-        else:
-            results[index] = result
-        pending_tasks -= 1
-        if pending_tasks == 0:
-            callback(errors if errors else None, results)
+    async def handle_item(item):
+        try:
+            result = await async_function(item)
+            results.append(result)
+        except Exception as e:
+            errors.append((item, str(e)))
 
-    for index, item in enumerate(data):
-        async_function(item, lambda error, result, idx=index: handle_result(idx, error, result))
+    await asyncio.gather(*(handle_item(item) for item in data))
+    return errors, results
 
 # Функція-імітація обробки замовлень з дебаунсом
-async def process_order(order, callback, min_time=2.0):
+async def process_order(order, min_time=2.0):
     preparation_time = random.uniform(0.5, 3)  # Час виконання від 0.5 до 3 секунд
     await asyncio.sleep(preparation_time)
     elapsed_time = preparation_time
@@ -32,9 +28,8 @@ async def process_order(order, callback, min_time=2.0):
         await asyncio.sleep(min_time - elapsed_time)
 
     if random.random() < 0.1:  # 10% шанс на помилку
-        callback(f"Замовлення {order} не вдалося обробити.", None)
-    else:
-        callback(None, f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд.")
+        raise Exception(f"Замовлення {order} не вдалося обробити.")
+    return f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд."
 
 # Функція для взаємодії з користувачем
 async def manage_orders():
@@ -54,17 +49,19 @@ async def manage_orders():
 
     print("\nОбробляємо замовлення... Зачекайте.")
 
-    def show_results(errors, results):
-        if errors:
-            print("\nПід час обробки сталися помилки:")
-            for index, error in errors:
-                print(f"Замовлення {orders[index]}: {error}")
+    # Використання async_map для обробки замовлень
+    errors, results = await async_map(orders, lambda order: process_order(order, min_time=2.0))
+
+    # Відображення результатів
+    if errors:
+        print("\nПід час обробки сталися помилки:")
+        for item, error in errors:
+            print(f"Замовлення {item}: {error}")
+    if results:
         print("\nРезультати обробки замовлень:")
         for result in results:
             print(result)
-        print("\nУсі замовлення оброблено! Смачного.")
-
-    async_map(orders, lambda order, cb: asyncio.create_task(process_order(order, cb, min_time=2.0)), show_results)
+    print("\nУсі замовлення оброблено! Смачного.")
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
