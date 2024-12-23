@@ -1,21 +1,22 @@
 import asyncio
 import random
 
-# Базова реалізація async_map для асинхронної обробки масиву з колбеками
+# Базова реалізація async_map для асинхронної обробки масиву з обробкою помилок
 
 def async_map(data, async_function, callback):
     results = [None] * len(data)
+    errors = []
     pending_tasks = len(data)
 
     def handle_result(index, error, result):
         nonlocal pending_tasks
         if error:
-            results[index] = f"Помилка: {error}"
+            errors.append((index, error))
         else:
             results[index] = result
         pending_tasks -= 1
         if pending_tasks == 0:
-            callback(results)
+            callback(errors if errors else None, results)
 
     for index, item in enumerate(data):
         async_function(item, lambda error, result, idx=index: handle_result(idx, error, result))
@@ -47,7 +48,11 @@ async def manage_orders():
 
     print("\nОбробляємо замовлення... Зачекайте.")
 
-    def show_results(results):
+    def show_results(errors, results):
+        if errors:
+            print("\nПід час обробки сталися помилки:")
+            for index, error in errors:
+                print(f"Замовлення {orders[index]}: {error}")
         print("\nРезультати обробки замовлень:")
         for result in results:
             print(result)
