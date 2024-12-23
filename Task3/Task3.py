@@ -74,14 +74,14 @@ async def manage_orders():
             action = input("Натисніть 'с' для скасування завдань або 'продовжити' для очікування: ").lower()
             if action == 'с':
                 abort_controller.cancel()
-                print("Усі завдання скасовано. Відбувається завершення...")
+                print("Усі завдання скасовано.")
                 break
             elif action == 'продовжити':
                 print("Продовжуємо обробку завдань...")
                 await task
                 break
 
-        if not abort_controller.is_cancelled() and task.done():
+        if not abort_controller.is_cancelled():
             errors, results = await task
             if errors:
                 print("\nПід час обробки сталися помилки:")
