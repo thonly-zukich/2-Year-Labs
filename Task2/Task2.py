@@ -2,8 +2,7 @@ import asyncio
 import random
 import time
 
-# Фіналізація Task 2: async_map оптимізовано з логуванням часу виконання
-
+# Реалізація async_map для async-await
 async def async_map(data, async_function):
     results = []
     errors = []
@@ -21,6 +20,17 @@ async def async_map(data, async_function):
     print(f"Час виконання async_map: {end_time - start_time:.2f} секунд")
     return errors, results
 
+# Реалізація promise_map із підтримкою контролю паралелізму
+async def promise_map(data, async_function, max_parallel=None):
+    semaphore = asyncio.Semaphore(max_parallel) if max_parallel else None
+
+    async def handle_item(item):
+        async with semaphore or asyncio.dummy_semaphore():
+            return await async_function(item)
+
+    tasks = [handle_item(item) for item in data]
+    return await asyncio.gather(*tasks, return_exceptions=True)
+
 # Функція-імітація обробки замовлень з дебаунсом
 async def process_order(order, min_time=2.0):
     preparation_time = random.uniform(0.5, 3)  # Час виконання від 0.5 до 3 секунд
@@ -35,40 +45,45 @@ async def process_order(order, min_time=2.0):
         raise Exception(f"Замовлення {order} не вдалося обробити.")
     return f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд."
 
-# Функція для взаємодії з користувачем
-async def manage_orders():
-    print("Ласкаво просимо до системи управління замовленнями!")
-    print("Введіть замовлення, які потрібно обробити.")
+# Використання async_map для async-await
+async def manage_orders_with_async_map():
+    orders = ["Замовлення 1", "Замовлення 2", "Замовлення 3"]
 
-    orders = []
-    while True:
-        order = input("Введіть замовлення (або 'готово' для завершення): ")
-        if order.lower() == 'готово':
-            break
-        orders.append(order)
-
-    if not orders:
-        print("Замовлення не додані. Вихід.")
-        return
-
-    print("\nОбробляємо замовлення... Зачекайте.")
-
-    # Використання async_map для обробки замовлень
+    print("\nОбробляємо замовлення з async_map...")
     errors, results = await async_map(orders, lambda order: process_order(order, min_time=2.0))
 
-    # Відображення результатів
     if errors:
         print("\nПід час обробки сталися помилки:")
         for item, error in errors:
-            print(f"Замовлення {item}: {error}")
+            print(f"{item}: {error}")
+
     if results:
         print("\nРезультати обробки замовлень:")
         for result in results:
             print(result)
-    print("\nУсі замовлення оброблено! Смачного.")
 
-    # Логування загального часу
-    print("\nСистема успішно завершила роботу. Дякуємо за використання!")
+# Використання promise_map для Promise-based підходу
+async def manage_orders_with_promises():
+    orders = ["Замовлення 1", "Замовлення 2", "Замовлення 3"]
+
+    print("\nОбробляємо замовлення з обмеженням паралелізму (max 2)...")
+    results = await promise_map(
+        orders, lambda order: process_order(order, min_time=2.0), max_parallel=2
+    )
+
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            print(f"{orders[i]}: Помилка: {result}")
+        else:
+            print(result)
+
+# Головна функція для запуску прикладів
+async def main():
+    print("Async-await приклад:")
+    await manage_orders_with_async_map()
+
+    print("\nPromise-based приклад:")
+    await manage_orders_with_promises()
 
 if __name__ == "__main__":
-    asyncio.run(manage_orders())
+    asyncio.run(main())
