@@ -30,21 +30,26 @@ class AbortController:
     def is_cancelled(self):
         return self.cancelled
 
-# Завдання 4: Обробка великих наборів даних за допомогою потоків (AsyncIterator)
-async def async_stream_map(data_stream, async_function, abort_controller):
+# Завдання 5: Реактивна обробка великих наборів даних через події
+async def async_stream_map(data_stream, async_function, abort_controller, events):
     results = []
     errors = []
 
     async for item in data_stream:
         if abort_controller.is_cancelled():
             errors.append((item, "Завдання скасовано."))
+            await events.emit("cancel", item)
             continue
         try:
+            await events.emit("start", item)
             result = await async_function(item)
             results.append(result)
+            await events.emit("success", item, result)
         except Exception as e:
             errors.append((item, str(e)))
+            await events.emit("error", item, str(e))
 
+    await events.emit("complete", results, errors)
     return errors, results
 
 # Асинхронний генератор для імітації великого набору даних
@@ -53,7 +58,7 @@ async def generate_large_data(size):
         await asyncio.sleep(0.1)  # Симуляція затримки при отриманні даних
         yield f"Елемент {i + 1}"
 
-# Функція-імітація обробки замовлень із затримкою (дебаунс)
+# Функція-імітація обробки елементів із затримкою (дебаунс)
 async def process_item(item, min_time=2.0):
     processing_time = random.uniform(0.5, 3)  # Час виконання від 0.5 до 3 секунд
     await asyncio.sleep(processing_time)
@@ -73,21 +78,29 @@ async def manage_stream():
 
     size = int(input("Введіть кількість елементів у наборі даних: "))
     abort_controller = AbortController()
+    events = EventEmitter()
+
+    # Реакція на події
+    events.on("start", lambda item: print(f"Починаємо обробку {item}"))
+    events.on("success", lambda item, result: print(f"Успішно оброблено {item}: {result}"))
+    events.on("error", lambda item, error: print(f"Помилка під час обробки {item}: {error}"))
+    events.on("cancel", lambda item: print(f"Обробка скасована для {item}"))
+    events.on("complete", lambda results, errors: print(f"\nЗавершення. Успішно: {len(results)}, З помилками: {len(errors)}"))
 
     print("\nПочинаємо обробку... Зачекайте.")
 
     data_stream = generate_large_data(size)
-    task = asyncio.create_task(async_stream_map(data_stream, lambda item: process_item(item, min_time=2.0), abort_controller))
+    task = asyncio.create_task(async_stream_map(data_stream, lambda item: process_item(item, min_time=2.0), abort_controller, events))
 
     try:
         while not task.done():
             action = input("Натисніть 'с' для скасування завдань або 'продовжити' для очікування: ").lower()
             if action == 'с':
                 abort_controller.cancel()
-                print("Усі завдання скасовано.")
+                print("\nУсі завдання скасовано. Чекаємо завершення...\n")
                 break
             elif action == 'продовжити':
-                print("Продовжуємо обробку завдань...")
+                print("\nПродовжуємо обробку завдань...\n")
                 await task
                 break
             await asyncio.sleep(0.1)
