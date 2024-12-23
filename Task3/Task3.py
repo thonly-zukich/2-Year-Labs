@@ -1,20 +1,34 @@
 import asyncio
 import random
 
-# Завдання 2: Реалізація async-await без використання колбеків
+# Клас для управління скасуванням завдань
+class AbortController:
+    def __init__(self):
+        self.cancelled = False
 
-async def async_map(data, async_function):
+    def cancel(self):
+        self.cancelled = True
+
+    def is_cancelled(self):
+        return self.cancelled
+
+# Завдання 2: Реалізація async-await без використання колбеків із підтримкою AbortController
+async def async_map(data, async_function, abort_controller):
     results = []
     errors = []
 
     async def handle_item(item):
+        if abort_controller.is_cancelled():
+            errors.append((item, "Завдання скасовано."))
+            return
         try:
             result = await async_function(item)
             results.append(result)
         except Exception as e:
             errors.append((item, str(e)))
 
-    await asyncio.gather(*(handle_item(item) for item in data))
+    tasks = [asyncio.create_task(handle_item(item)) for item in data]
+    await asyncio.gather(*tasks)
     return errors, results
 
 # Функція-імітація обробки замовлень із затримкою (дебаунс)
@@ -48,10 +62,16 @@ async def manage_orders():
         print("Замовлення не додані. Вихід.")
         return
 
+    abort_controller = AbortController()
+
     print("\nОбробляємо замовлення... Зачекайте.")
 
+    # Створення завдання для обробки замовлень
+    task = asyncio.create_task(async_map(orders, lambda order: process_order(order, min_time=2.0), abort_controller))
+    await task
+
     # Використання async_map для обробки замовлень
-    errors, results = await async_map(orders, lambda order: process_order(order, min_time=2.0))
+    errors, results = await task
 
     # Відображення результатів
     if errors:
@@ -63,9 +83,6 @@ async def manage_orders():
         for result in results:
             print(result)
     print("\nУсі замовлення оброблено! Смачного.")
-
-    # Додаткове логування часу виконання
-    print("\nДодатковий звіт про дебаунс: кожне замовлення виконувалося не менше ніж за 2 секунди.")
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
