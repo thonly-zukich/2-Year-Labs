@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-# Базова реалізація async_map для асинхронної обробки масиву з обробкою помилок
+# Базова реалізація async_map для асинхронної обробки масиву з обробкою помилок і підтримкою дебаунсу
 
 def async_map(data, async_function, callback):
     results = [None] * len(data)
@@ -21,14 +21,20 @@ def async_map(data, async_function, callback):
     for index, item in enumerate(data):
         async_function(item, lambda error, result, idx=index: handle_result(idx, error, result))
 
-# Функція-імітація обробки замовлень з колбеками
-async def process_order(order, callback):
+# Функція-імітація обробки замовлень з дебаунсом
+async def process_order(order, callback, min_time=2.0):
     preparation_time = random.uniform(0.5, 3)  # Час виконання від 0.5 до 3 секунд
     await asyncio.sleep(preparation_time)
+    elapsed_time = preparation_time
+
+    # Додатковий час очікування, якщо завдання виконується швидше мінімального часу
+    if elapsed_time < min_time:
+        await asyncio.sleep(min_time - elapsed_time)
+
     if random.random() < 0.1:  # 10% шанс на помилку
         callback(f"Замовлення {order} не вдалося обробити.", None)
     else:
-        callback(None, f"Замовлення {order} готове за {preparation_time:.2f} секунд.")
+        callback(None, f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд.")
 
 # Функція для взаємодії з користувачем
 async def manage_orders():
@@ -58,7 +64,7 @@ async def manage_orders():
             print(result)
         print("\nУсі замовлення оброблено! Смачного.")
 
-    async_map(orders, lambda order, cb: asyncio.create_task(process_order(order, cb)), show_results)
+    async_map(orders, lambda order, cb: asyncio.create_task(process_order(order, cb, min_time=2.0)), show_results)
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
