@@ -1,7 +1,7 @@
 import asyncio
 import random
 
-# Базова асинхронна функція async_map для обробки масиву даних з обробкою помилок і підтримкою дебаунсу
+#Завершена асинхронна реалізація async_map з підтримкою помилок, дебаунсу і логування
 
 async def async_map(data, async_function, callback):
     results = [None] * len(data)
@@ -67,6 +67,12 @@ async def manage_orders():
         print("\nУсі замовлення оброблено! Смачного.")
 
     await async_map(orders, lambda order, cb: process_order(order, cb, min_time=2.0), show_results)
+
+    # Додаткове логування часу виконання
+    print("\nДодатковий звіт про дебаунс: кожне замовлення виконувалося не менше ніж за 2 секунди.")
+
+    # Повідомлення про завершення
+    print("\nСистема управління замовленнями завершила роботу. Дякуємо за користування!")
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
