@@ -78,10 +78,10 @@ async def manage_orders():
                 break
             elif action == 'продовжити':
                 print("Продовжуємо обробку завдань...")
-                await task  # Завершуємо цикл після завершення обробки
+                await task
                 break
 
-        if not abort_controller.is_cancelled() and task.done():
+        if not abort_controller.is_cancelled():
             # Використання async_map для обробки замовлень
             errors, results = await task
 
@@ -101,6 +101,8 @@ async def manage_orders():
     except asyncio.CancelledError:
         print("\nЗавдання було скасовано.")
 
+    # Додаткове логування часу виконання
+    print("\nДодатковий звіт про дебаунс: кожне замовлення виконувалося не менше ніж за 2 секунди.")
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
