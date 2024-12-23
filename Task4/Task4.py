@@ -66,10 +66,10 @@ async def manage_stream():
             action = input("Натисніть 'с' для скасування завдань або 'продовжити' для очікування: ").lower()
             if action == 'с':
                 abort_controller.cancel()
-                print("Усі завдання скасовано.")
+                print("\nУсі завдання скасовано. Чекаємо завершення...\n")
                 break
             elif action == 'продовжити':
-                print("Продовжуємо обробку завдань...")
+                print("\nПродовжуємо обробку завдань...\n")
                 await task
                 break
             await asyncio.sleep(0.1)
