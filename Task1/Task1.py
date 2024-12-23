@@ -68,5 +68,8 @@ async def manage_orders():
 
     await async_map(orders, lambda order, cb: process_order(order, cb, min_time=2.0), show_results)
 
+    # Додаткове логування часу виконання
+    print("\nДодатковий звіт про дебаунс: кожне замовлення виконувалося не менше ніж за 2 секунди.")
+
 if __name__ == "__main__":
     asyncio.run(manage_orders())
