@@ -1,7 +1,8 @@
 import asyncio
 import random
+import time
 
-# Перехід на Task 2: async_map переписано для використання async-await
+# Фіналізація Task 2: async_map оптимізовано з логуванням часу виконання
 
 async def async_map(data, async_function):
     results = []
@@ -14,7 +15,10 @@ async def async_map(data, async_function):
         except Exception as e:
             errors.append((item, str(e)))
 
+    start_time = time.time()
     await asyncio.gather(*(handle_item(item) for item in data))
+    end_time = time.time()
+    print(f"Час виконання async_map: {end_time - start_time:.2f} секунд")
     return errors, results
 
 # Функція-імітація обробки замовлень з дебаунсом
@@ -62,6 +66,9 @@ async def manage_orders():
         for result in results:
             print(result)
     print("\nУсі замовлення оброблено! Смачного.")
+
+    # Логування загального часу
+    print("\nСистема успішно завершила роботу. Дякуємо за використання!")
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
