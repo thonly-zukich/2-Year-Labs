@@ -68,21 +68,39 @@ async def manage_orders():
 
     # Створення завдання для обробки замовлень
     task = asyncio.create_task(async_map(orders, lambda order: process_order(order, min_time=2.0), abort_controller))
-    await task
 
-    # Використання async_map для обробки замовлень
-    errors, results = await task
+    try:
+        while not task.done():
+            action = input("Натисніть 'с' для скасування завдань або 'продовжити' для очікування: ").lower()
+            if action == 'с':
+                abort_controller.cancel()
+                print("Усі завдання скасовано.")
+                break
+            elif action == 'продовжити':
+                print("Продовжуємо обробку завдань...")
+                await task  # Завершуємо цикл після завершення обробки
+                break
 
-    # Відображення результатів
-    if errors:
-        print("\nПід час обробки сталися помилки:")
-        for item, error in errors:
-            print(f"Замовлення {item}: {error}")
-    if results:
-        print("\nРезультати обробки замовлень:")
-        for result in results:
-            print(result)
-    print("\nУсі замовлення оброблено! Смачного.")
+        if not abort_controller.is_cancelled() and task.done():
+            # Використання async_map для обробки замовлень
+            errors, results = await task
+
+            # Відображення результатів
+            if errors:
+                print("\nПід час обробки сталися помилки:")
+                for item, error in errors:
+                    print(f"Замовлення {item}: {error}")
+            if results:
+                print("\nРезультати обробки замовлень:")
+                for result in results:
+                    print(result)
+            print("\nУсі замовлення оброблено! Смачного.")
+        else:
+            print("\nОбробку замовлень скасовано.")
+
+    except asyncio.CancelledError:
+        print("\nЗавдання було скасовано.")
+
 
 if __name__ == "__main__":
     asyncio.run(manage_orders())
