@@ -1,26 +1,25 @@
 import asyncio
 import random
 
-#Завершена асинхронна реалізація async_map з підтримкою помилок, дебаунсу і логування
-
+# Асинхронна функція async_map із підтримкою callback
 async def async_map(data, async_function, callback):
-    results = [None] * len(data)
     errors = []
+    results = []
 
     async def handle_item(index, item):
-        def handle_result(error, result):
-            if error:
-                errors.append((index, error))
-            else:
-                results[index] = result
-
-        await async_function(item, handle_result)
+        try:
+            result = await async_function(item)
+            results.append((index, result))
+        except Exception as e:
+            errors.append((index, e))
 
     await asyncio.gather(*(handle_item(index, item) for index, item in enumerate(data)))
-    callback(errors if errors else None, results)
 
-# Функція-імітація обробки замовлень із затримкою (дебаунс)
-async def process_order(order, callback, min_time=2.0):
+    # Передача результатів у callback
+    callback(errors if errors else None, [result for _, result in sorted(results)])
+
+# Асинхронна функція-імітація обробки замовлень
+async def process_order(order, min_time=2.0):
     preparation_time = random.uniform(0.5, 3)  # Час виконання від 0.5 до 3 секунд
     await asyncio.sleep(preparation_time)
     elapsed_time = preparation_time
@@ -30,9 +29,8 @@ async def process_order(order, callback, min_time=2.0):
         await asyncio.sleep(min_time - elapsed_time)
 
     if random.random() < 0.1:  # 10% шанс на помилку
-        callback(f"Замовлення {order} не вдалося обробити.", None)
-    else:
-        callback(None, f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд.")
+        raise Exception(f"Замовлення {order} не вдалося обробити.")
+    return f"Замовлення {order} готове за {max(preparation_time, min_time):.2f} секунд."
 
 # Основна функція для управління замовленнями
 async def manage_orders():
@@ -61,12 +59,11 @@ async def manage_orders():
                 print(f"Замовлення {orders[index]}: {error}")
         if results:
             print("\nРезультати обробки замовлень:")
-            for index, result in enumerate(results):
-                if result:
-                    print(result)
+            for result in results:
+                print(result)
         print("\nУсі замовлення оброблено! Смачного.")
 
-    await async_map(orders, lambda order, cb: process_order(order, cb, min_time=2.0), show_results)
+    await async_map(orders, lambda order: process_order(order, min_time=2.0), show_results)
 
     # Додаткове логування часу виконання
     print("\nДодатковий звіт про дебаунс: кожне замовлення виконувалося не менше ніж за 2 секунди.")
